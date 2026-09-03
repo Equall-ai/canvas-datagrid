@@ -450,6 +450,18 @@
         } else if (s.fontWeight) {
           ctx.font = s.fontWeight + ' ' + ctx.font;
         }
+        // Text decoration is drawn by drawText(), which runs after this event
+        // and owns the per-line geometry (wrapping, alignment, ellipsis). We
+        // only flag the cell; `strikethrough: true` is sugar for line-through.
+        const deco =
+          s.textDecoration || (s.strikethrough ? 'line-through' : null);
+        if (deco) {
+          cell.textDecoration = deco;
+          if (s.textDecorationColor)
+            cell.textDecorationColor = s.textDecorationColor;
+          if (s.textDecorationWidth != null)
+            cell.textDecorationWidth = s.textDecorationWidth;
+        }
       }
     }
   }

@@ -189,6 +189,10 @@ Apply declarative styles to cells without writing `rendercell` handlers:
 | `color` | `string` | Text color |
 | `font` | `string` | Full CSS font string (e.g. `"bold 14px sans-serif"`) |
 | `fontWeight` | `string` | Font weight (e.g. `"bold"`) — applied as prefix to existing font |
+| `textDecoration` | `'none' \| 'line-through' \| 'underline'` | Line drawn through or under the cell text |
+| `strikethrough` | `boolean` | Shorthand for `textDecoration: 'line-through'` — ignored when `textDecoration` is set |
+| `textDecorationColor` | `string` | Decoration line color — defaults to the cell's text color |
+| `textDecorationWidth` | `number` | Decoration line thickness in CSS pixels — defaults to a proportion of the font size |
 | `shadow` | `'none' \| 'sm' \| 'md' \| 'lg'` | Inset top shadow for row depth effect |
 | `borderColor` | `string` | Cell border color |
 | `borderWidth` | `number` | Cell border width in pixels |
@@ -212,6 +216,25 @@ Per-side borders example:
   }}
 />
 ```
+
+Text decoration example:
+
+```svelte
+<CanvasDatagrid
+  {data}
+  cellStyle={({ colName, row }) => {
+    // strike out every cell of a cancelled row
+    if (row.status === 'cancelled')
+      return { strikethrough: true, color: '#9ca3af', textDecorationColor: '#ef4444' };
+    if (colName === 'Email')
+      return { textDecoration: 'underline', color: '#2563eb' };
+  }}
+/>
+```
+
+> Text decoration is not applied to columns that use a `columnRenderers`
+> snippet — those replace the canvas text with an HTML overlay, so style them
+> with CSS instead.
 
 ### Animated Row Transitions
 

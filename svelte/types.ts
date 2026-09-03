@@ -342,6 +342,14 @@ export interface CellStyle {
   font?: string;
   /** Font weight (e.g. "bold", "600"). Applied as prefix to the existing font. */
   fontWeight?: string;
+  /** Line drawn through or under the cell text. Not applied to columns using a custom `columnRenderers` snippet — style those with CSS. */
+  textDecoration?: 'none' | 'line-through' | 'underline';
+  /** Shorthand for `textDecoration: 'line-through'`. Ignored when `textDecoration` is set. */
+  strikethrough?: boolean;
+  /** Color of the decoration line (CSS color string). Defaults to the cell's text color. */
+  textDecorationColor?: string;
+  /** Thickness of the decoration line in CSS pixels. Defaults to a proportion of the font size. */
+  textDecorationWidth?: number;
   /** Inset top shadow preset. Creates depth effect where the row above appears to float over this cell. */
   shadow?: 'none' | 'sm' | 'md' | 'lg';
   /** Cell border color (CSS color string). */
