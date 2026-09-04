@@ -462,16 +462,6 @@
           if (s.textDecorationWidth != null)
             cell.textDecorationWidth = s.textDecorationWidth;
         }
-        // The flag icon is drawn by the canvas draw pipeline after the cell
-        // text; we only mark the cell here.  `flag: '<color>'` is sugar for
-        // `flag: true, flagColor: '<color>'`.
-        if (s.flag) {
-          cell.flagIcon = true;
-          const flagColor =
-            s.flagColor || (typeof s.flag === 'string' ? s.flag : null);
-          if (flagColor) cell.flagIconColor = flagColor;
-          if (s.flagSize != null) cell.flagIconSize = s.flagSize;
-        }
       }
     }
   }

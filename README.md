@@ -193,9 +193,6 @@ Apply declarative styles to cells without writing `rendercell` handlers:
 | `strikethrough` | `boolean` | Shorthand for `textDecoration: 'line-through'` — ignored when `textDecoration` is set |
 | `textDecorationColor` | `string` | Decoration line color — defaults to the cell's text color |
 | `textDecorationWidth` | `number` | Decoration line thickness in CSS pixels — defaults to a proportion of the font size |
-| `flag` | `boolean \| string` | Draw a flag icon at the right edge of the cell — a CSS color string is shorthand for `flag: true` + `flagColor` |
-| `flagColor` | `string` | Flag icon color — defaults to the grid's `cellFlagIconColor` style (a blue) |
-| `flagSize` | `number` | Flag icon height in CSS pixels — defaults to a proportion of the font size |
 | `shadow` | `'none' \| 'sm' \| 'md' \| 'lg'` | Inset top shadow for row depth effect |
 | `borderColor` | `string` | Cell border color |
 | `borderWidth` | `number` | Cell border width in pixels |
@@ -235,23 +232,9 @@ Text decoration example:
 />
 ```
 
-Flag icon example:
-
-```svelte
-<CanvasDatagrid
-  {data}
-  cellStyle={({ colName, row }) => {
-    // flag amounts that need review
-    if (colName === 'Amount' && row.needsReview) return { flag: true };
-    // shorthand: pass a color directly
-    if (colName === 'Status' && row.urgent) return { flag: '#ef4444' };
-  }}
-/>
-```
-
-> Text decoration and flag icons are not applied to columns that use a
-> `columnRenderers` snippet — those replace the canvas text with an HTML
-> overlay, so render/style them in the snippet with CSS instead.
+> Text decoration is not applied to columns that use a `columnRenderers`
+> snippet — those replace the canvas text with an HTML overlay, so style them
+> with CSS instead.
 
 ### Animated Row Transitions
 

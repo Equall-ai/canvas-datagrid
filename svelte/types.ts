@@ -350,12 +350,6 @@ export interface CellStyle {
   textDecorationColor?: string;
   /** Thickness of the decoration line in CSS pixels. Defaults to a proportion of the font size. */
   textDecorationWidth?: number;
-  /** Draw a flag icon at the right edge of the cell. Pass a CSS color string as shorthand for `flag: true` + `flagColor`. Not applied to columns using a custom `columnRenderers` snippet — render the icon in the snippet instead. */
-  flag?: boolean | string;
-  /** Flag icon color (CSS color string). Defaults to the grid's `cellFlagIconColor` style (a blue). */
-  flagColor?: string;
-  /** Flag icon height in CSS pixels. Defaults to a proportion of the font size. */
-  flagSize?: number;
   /** Inset top shadow preset. Creates depth effect where the row above appears to float over this cell. */
   shadow?: 'none' | 'sm' | 'md' | 'lg';
   /** Cell border color (CSS color string). */
