@@ -10,7 +10,8 @@
   "svelte": "./lib/main.js",
   "scripts": {
     "build": "rollup -c && webpack",
-    "postbuild": "npm run build:types",
+    "postbuild": "npm run assert-no-eval && npm run build:types",
+    "assert-no-eval": "node scripts/assert-no-eval.js",
     "prebuild:docs": "node docs/jsdoc-to-md.js",
     "build:docs": "cd docs && npm run build",
     "format": "prettier lib/**/*.js --write",

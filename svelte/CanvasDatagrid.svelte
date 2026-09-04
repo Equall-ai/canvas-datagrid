@@ -485,6 +485,24 @@
     };
   }
 
+  // Max right edge of the visible frozen columns, in CSS px (0 when no frozen
+  // columns).  Non-frozen cells scroll underneath the frozen block on the
+  // canvas, so overlay divs for them must be clipped at this boundary or they
+  // paint across the frozen columns.
+  function getFrozenRightPixel(cells, scale) {
+    if (!grid || !(grid.frozenColumn > 0)) return 0;
+    let maxRight = 0;
+    for (let i = 0; i < cells.length; i++) {
+      const c = cells[i];
+      if (!c.isRowHeader && !c.isCorner
+          && c.columnIndex !== undefined && c.columnIndex < grid.frozenColumn) {
+        const right = (c.x + c.width) / scale;
+        if (right > maxRight) maxRight = right;
+      }
+    }
+    return maxRight;
+  }
+
   function updateHeaderOverlays() {
     if (!grid || !htmlHeaders) {
       renderedHeaders = [];
@@ -496,6 +514,7 @@
       return;
     }
     const scale = grid.scale || 1;
+    const frozenRight = getFrozenRightPixel(cells, scale);
     const newHeaders = [];
     const seenHeaders = new Set();
     for (let i = 0; i < cells.length; i++) {
@@ -506,17 +525,28 @@
       const headerKey = 'h:' + cell.columnIndex;
       if (seenHeaders.has(headerKey)) continue;
       seenHeaders.add(headerKey);
+      const left = cell.x / scale;
+      const width = cell.width / scale;
+      const frozen = grid.frozenColumn > 0 && cell.columnIndex < grid.frozenColumn;
+      // Clip non-frozen headers at the frozen boundary; skip ones fully
+      // behind the frozen block.
+      let clipLeft = 0;
+      if (!frozen && left < frozenRight) {
+        clipLeft = frozenRight - left;
+        if (clipLeft >= width) continue;
+      }
       newHeaders.push({
         key: headerKey,
         colName,
         title: cell.header?.title || colName,
         columnIndex: cell.columnIndex,
-        left: cell.x / scale,
+        left,
         top: cell.y / scale,
-        width: cell.width / scale,
+        width,
         height: cell.height / scale,
+        clipLeft,
         sortDirection: grid.orderBy === colName ? grid.orderDirection : null,
-        frozen: grid.frozenColumn > 0 && cell.columnIndex < grid.frozenColumn,
+        frozen,
       });
     }
     headerStyles = getHeaderStyles();
@@ -542,6 +572,7 @@
     const scale = grid.scale || 1;
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
+    const frozenRight = getFrozenRightPixel(cells, scale);
     const newCells = [];
     const seen = new Set();
     for (let i = 0; i < cells.length; i++) {
@@ -557,6 +588,16 @@
         const clippedWidth = Math.min(cell.width / scale, containerWidth - left);
         const clippedHeight = Math.min(cell.height / scale, containerHeight - top);
         if (clippedWidth <= 0 || clippedHeight <= 0) continue;
+        const frozen = grid.frozenColumn > 0 && cell.columnIndex < grid.frozenColumn;
+        // Clip non-frozen cells at the frozen boundary; skip ones fully
+        // behind the frozen block.  clip-path hides the overlapping strip
+        // without shifting the cell, so its content stays aligned to its
+        // own column.
+        let clipLeft = 0;
+        if (!frozen && left < frozenRight) {
+          clipLeft = frozenRight - left;
+          if (clipLeft >= clippedWidth) continue;
+        }
         newCells.push({
           key: cellKey,
           colName,
@@ -569,7 +610,8 @@
           top,
           width: clippedWidth,
           height: clippedHeight,
-          frozen: grid.frozenColumn > 0 && cell.columnIndex < grid.frozenColumn,
+          clipLeft,
+          frozen,
         });
       }
     }
@@ -613,21 +655,8 @@
     updateRendererOverlays();
     updateHeaderOverlays();
     updateTestOverlays();
-    if (grid && grid.frozenColumn > 0) {
-      const scale = grid.scale || 1;
-      const cells = grid.visibleCells;
-      let maxRight = 0;
-      if (cells) {
-        for (let i = 0; i < cells.length; i++) {
-          const c = cells[i];
-          if (!c.isHeader && !c.isRowHeader && !c.isCorner
-              && c.columnIndex !== undefined && c.columnIndex < grid.frozenColumn) {
-            const right = (c.x + c.width) / scale;
-            if (right > maxRight) maxRight = right;
-          }
-        }
-      }
-      frozenColumnPixel = maxRight;
+    if (grid && grid.frozenColumn > 0 && grid.visibleCells) {
+      frozenColumnPixel = getFrozenRightPixel(grid.visibleCells, grid.scale || 1);
     } else {
       frozenColumnPixel = 0;
     }
@@ -899,7 +928,7 @@
       {#each renderedCells as cell (cell.key)}
         <div
           class="cdg-renderer-cell"
-          style="left:{cell.left}px;top:{cell.top}px;width:{cell.width}px;height:{cell.height}px;{cell.frozen ? 'z-index:1;' : ''}"
+          style="left:{cell.left}px;top:{cell.top}px;width:{cell.width}px;height:{cell.height}px;{cell.frozen ? 'z-index:1;' : ''}{cell.clipLeft > 0 ? `clip-path:inset(0 0 0 ${cell.clipLeft}px);` : ''}"
         >
           {@render columnRenderers[cell.colName](cell)}
         </div>
@@ -911,7 +940,7 @@
       {#each renderedHeaders as header (header.key)}
         <button
           class="cdg-header-cell"
-          style="left:{header.left}px;top:{header.top}px;width:{header.width}px;height:{header.height}px;background:{headerStyles.backgroundColor};color:{headerStyles.color};font:{headerStyles.font};text-align:{headerStyles.textAlign};padding:{headerStyles.paddingTop} {headerStyles.paddingRight} {headerStyles.paddingBottom} {headerStyles.paddingLeft};border:none;border-right:{headerStyles.borderWidth} solid {headerStyles.borderColor};border-bottom:{headerStyles.borderWidth} solid {headerStyles.borderColor};{header.frozen ? 'z-index:1;' : ''}"
+          style="left:{header.left}px;top:{header.top}px;width:{header.width}px;height:{header.height}px;background:{headerStyles.backgroundColor};color:{headerStyles.color};font:{headerStyles.font};text-align:{headerStyles.textAlign};padding:{headerStyles.paddingTop} {headerStyles.paddingRight} {headerStyles.paddingBottom} {headerStyles.paddingLeft};border:none;border-right:{headerStyles.borderWidth} solid {headerStyles.borderColor};border-bottom:{headerStyles.borderWidth} solid {headerStyles.borderColor};{header.frozen ? 'z-index:1;' : ''}{header.clipLeft > 0 ? `clip-path:inset(0 0 0 ${header.clipLeft}px);` : ''}"
           onclick={() => handleHeaderClick(header)}
         >
           {#if columnHeaderRenderers[header.colName]}
@@ -923,12 +952,16 @@
             {/if}
           {/if}
         </button>
-        <div
-          class="cdg-header-resize"
-          style="left:{header.left + header.width - 4}px;top:{header.top}px;height:{header.height}px;{header.frozen ? 'z-index:2;' : ''}"
-          onmousedown={handleHeaderResizeStart}
-          ondblclick={(e) => handleHeaderResizeDblClick(e, header)}
-        ></div>
+        {#if header.clipLeft <= header.width - 4}
+          <!-- The 8px handle starts 4px left of the column edge; skip it when
+               that would reach into the frozen block. -->
+          <div
+            class="cdg-header-resize"
+            style="left:{header.left + header.width - 4}px;top:{header.top}px;height:{header.height}px;{header.frozen ? 'z-index:2;' : ''}"
+            onmousedown={handleHeaderResizeStart}
+            ondblclick={(e) => handleHeaderResizeDblClick(e, header)}
+          ></div>
+        {/if}
       {/each}
     </div>
   {/if}
