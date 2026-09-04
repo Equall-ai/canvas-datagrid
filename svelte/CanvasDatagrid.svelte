@@ -485,22 +485,27 @@
     };
   }
 
-  // Max right edge of the visible frozen columns, in CSS px (0 when no frozen
-  // columns).  Non-frozen cells scroll underneath the frozen block on the
-  // canvas, so overlay divs for them must be clipped at this boundary or they
-  // paint across the frozen columns.
-  function getFrozenRightPixel(cells, scale) {
+  // Right edge of the pinned (frozen) column block in CSS px (0 when no
+  // frozen columns).  Non-frozen cells scroll underneath the pinned block on
+  // the canvas, so overlay divs for them must be clipped at this boundary or
+  // they paint across the frozen columns.
+  //
+  // Read from the engine (grid.frozenColumnPixel, set by its draw pass in the
+  // same coordinate space as visibleCells x values) rather than re-derived by
+  // scanning visibleCells: the scan broke once scrolled because the header
+  // end-cap filler cell carries columnIndex -1, which passes any
+  // `columnIndex < frozenColumn` filter and pushed the boundary to the far
+  // right of the container, blanking every overlay cell.
+  function getFrozenRightPixel() {
     if (!grid || !(grid.frozenColumn > 0)) return 0;
-    let maxRight = 0;
-    for (let i = 0; i < cells.length; i++) {
-      const c = cells[i];
-      if (!c.isRowHeader && !c.isCorner
-          && c.columnIndex !== undefined && c.columnIndex < grid.frozenColumn) {
-        const right = (c.x + c.width) / scale;
-        if (right > maxRight) maxRight = right;
-      }
-    }
-    return maxRight;
+    return (grid.frozenColumnPixel || 0) / (grid.scale || 1);
+  }
+
+  // Boundary for clipping overlay cells.  Hard invariant: at horizontal
+  // scroll 0 nothing can be behind the pinned block, so never clip or skip.
+  function getFrozenClipBoundary() {
+    if (!grid || !(grid.scrollLeft > 0)) return 0;
+    return getFrozenRightPixel();
   }
 
   function updateHeaderOverlays() {
@@ -514,7 +519,7 @@
       return;
     }
     const scale = grid.scale || 1;
-    const frozenRight = getFrozenRightPixel(cells, scale);
+    const frozenRight = getFrozenClipBoundary();
     const newHeaders = [];
     const seenHeaders = new Set();
     for (let i = 0; i < cells.length; i++) {
@@ -572,7 +577,7 @@
     const scale = grid.scale || 1;
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
-    const frozenRight = getFrozenRightPixel(cells, scale);
+    const frozenRight = getFrozenClipBoundary();
     const newCells = [];
     const seen = new Set();
     for (let i = 0; i < cells.length; i++) {
@@ -655,11 +660,9 @@
     updateRendererOverlays();
     updateHeaderOverlays();
     updateTestOverlays();
-    if (grid && grid.frozenColumn > 0 && grid.visibleCells) {
-      frozenColumnPixel = getFrozenRightPixel(grid.visibleCells, grid.scale || 1);
-    } else {
-      frozenColumnPixel = 0;
-    }
+    // The frozen shadow tracks the pinned edge itself, so it uses the
+    // unconditional boundary (visible at scroll 0 too).
+    frozenColumnPixel = getFrozenRightPixel();
   }
 
   function getCanvasEl() {
@@ -926,12 +929,19 @@
   {#if renderedCells.length > 0}
     <div class="cdg-renderer-overlay" onwheel={forwardWheel}>
       {#each renderedCells as cell (cell.key)}
-        <div
-          class="cdg-renderer-cell"
-          style="left:{cell.left}px;top:{cell.top}px;width:{cell.width}px;height:{cell.height}px;{cell.frozen ? 'z-index:1;' : ''}{cell.clipLeft > 0 ? `clip-path:inset(0 0 0 ${cell.clipLeft}px);` : ''}"
-        >
-          {@render columnRenderers[cell.colName](cell)}
-        </div>
+        <!-- renderedCells only refreshes on the next 'afterdraw', but this
+             template re-renders as soon as the columnRenderers prop changes.
+             When the host removes renderers at runtime, stale cells would
+             {@render undefined(cell)} for a frame, which throws and wedges
+             the overlay — so guard until the next draw prunes them. -->
+        {#if columnRenderers[cell.colName]}
+          <div
+            class="cdg-renderer-cell"
+            style="left:{cell.left}px;top:{cell.top}px;width:{cell.width}px;height:{cell.height}px;{cell.frozen ? 'z-index:1;' : ''}{cell.clipLeft > 0 ? `clip-path:inset(0 0 0 ${cell.clipLeft}px);` : ''}"
+          >
+            {@render columnRenderers[cell.colName](cell)}
+          </div>
+        {/if}
       {/each}
     </div>
   {/if}
